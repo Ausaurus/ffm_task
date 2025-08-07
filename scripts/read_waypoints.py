@@ -5,10 +5,11 @@ from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import actionlib
 from std_msgs.msg import String
-from map_search.srv import *
+from ffm_task.srv import *
+from config import DIR
 
 def load_waypoints(room_no,
-                   filename="/home/i_h8_ros/ffm_ws/src/map_search/waypoints.txt"):
+                   filename=f"/home/{DIR}/src/ffm_task/waypoints.txt"):
     # Define the structured data type for our waypoints
     dt = np.dtype([('x', float), ('y', float), ('z', float)])
 

@@ -6,14 +6,15 @@ import mediapipe as mp
 import pyzed.sl as sl
 import rospy
 from std_msgs.msg import String, Bool
+from config import DIR
 
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1)
 
 # ----------------------------- GENDER DETECTION SETUP -----------------------------
 # Load pre-trained gender detection model
-modelFile = "/home/i_h8_ros/ffm_ws/src/person_description/gender_net.caffemodel"
-configFile = "/home/i_h8_ros/ffm_ws/src/person_description/gender_deploy.prototxt"
+modelFile = f"/home/{DIR}/src/person_description/gender_net.caffemodel"
+configFile = f"/home/{DIR}/src/person_description/gender_deploy.prototxt"
 net = cv2.dnn.readNet(modelFile, configFile)
 
 # Gender labels

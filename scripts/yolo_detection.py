@@ -12,7 +12,7 @@ class YoloDetector:
         rospy.init_node('yolo_detector', anonymous=True)
         rospy.loginfo("Node initialized")
         self.bridge = CvBridge()
-        self.model = YOLO('/home/i_h8_ros/catkin_ws/src/ffm_pkg/yolov8n.pt')
+        self.model = YOLO(f'/home/{DIR}/src/ffm_task/yolov8n.pt')
         self.person_class_id = 0
         self.center_threshold = 20
         self.confidence_threshold = 0.7  # Confidence threshold for detections

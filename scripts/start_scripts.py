@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import rospy
 import subprocess
-from map_search.srv import *
+from ffm_task.srv import *
 from std_srvs.srv import *
+from config import DIR
 
 class start_scripts:
     def __init__(self):
@@ -15,7 +16,7 @@ class start_scripts:
         rospy.loginfo("start servicee")
         self.next_waypoint = True
         self.arrive = False
-        self.rotate = "/home/i_h8_ros/ffm_ws/src/ffm_pkg/scripts/resume_min.py"
+        self.rotate = f"/home/{DIR}/src/ffm_task/scripts/resume_min.py"
         self.room_number = 0
 
     def run_script(self, path):
