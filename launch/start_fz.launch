@@ -1,0 +1,9 @@
+<launch>
+    <node pkg="ffm_pkg" name="start_scripts" type="start_scripts.py" output="screen" />
+    <!--
+    <node pkg="map_search" name="read_waypoints" type="read_waypoints.py" output="screen" />
+    <include
+    file="/home/i_h8_ros/ffm_ws/src/nav_pkg/launch/nav_nochange.launch"
+    />
+    -->
+</launch>

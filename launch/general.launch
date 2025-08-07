@@ -1,0 +1,7 @@
+<launch>
+    <node name="take_photo_node" pkg="fz_gemini" type="take_photo.py" output="screen">
+    </node>
+    <node pkg="ffm_pkg" name="yolo_detector" type="yolo_detection.py" output="screen" />
+    <node pkg="ffm_pkg" name="aligned_depth_rgb" type="aligned_depth_rgb.py" output="screen" />
+    <node pkg="ffm_pkg" name="pyzed" type="aligned_depth_rgb_pyzed.py" output="screen" />
+</launch>
