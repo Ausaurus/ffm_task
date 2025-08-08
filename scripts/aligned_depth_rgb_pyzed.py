@@ -50,7 +50,9 @@ class zed_filter:
                 self.zed.retrieve_measure(self.depth, sl.MEASURE.DEPTH)
                 self.cvImage_bgra = self.image.get_data()
                 self.cvImage_bgr = cv2.cvtColor(self.cvImage_bgra, cv2.COLOR_BGRA2BGR)
+                self.cvImage_bgr = cv2.flip(self.cvImage_bgr, -1)
                 self.depth_np = self.depth.get_data()
+                self.depth_np = cv2.flip(self.depth_np, -1)
             if (not self.selection_rect.is_empty() and self.selection_rect.is_contained(sl.Rect(0,0,self.cvImage_bgra.shape[1],self.cvImage_bgra.shape[0]))): #Check if selection rectangle is valid and draw it on the image
                 cv2.rectangle(self.cvImage_bgra,(self.selection_rect.x,self.selection_rect.y),(self.selection_rect.width+self.selection_rect.x,self.selection_rect.height+self.selection_rect.y),(220,180,20),2)
             cv2.imshow("self.zed_window", self.cvImage_bgra)

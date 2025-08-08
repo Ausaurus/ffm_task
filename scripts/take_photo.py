@@ -31,9 +31,10 @@ class TakePhoto:
 
         try:
             cv_image = self.bridge.imgmsg_to_cv2(self.latest_image, "bgr8")
-            image_path = "/tmp/person_snapshot.jpg"
+            image_path = f"/home/i_h8_ros/ffm_ws/src/ffm_task/person_snapshot{self.number}.jpg"
             cv2.imwrite(image_path, cv_image)
             rospy.loginfo(f"Image saved to {image_path}")
+            self.number += 1
             return TriggerResponse(success=True, message="Image captured and saved successfully.")
         except CvBridgeError as e:
             rospy.logerr(f"Failed to convert image: {e}")

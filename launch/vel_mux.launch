@@ -1,0 +1,6 @@
+<launch>
+  <node name="vel_mux" pkg="topic_tools" type="mux" output="screen"
+        args="/mobile_base/commands/velocity /move_base_cmd /resume_cmd
+        mux:=/vel_mux"/>
+</launch>
+

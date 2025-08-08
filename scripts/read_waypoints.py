@@ -5,8 +5,9 @@ from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import actionlib
 from std_msgs.msg import String
-from ffm_task.srv import *
+from map_search.srv import *
 from config import DIR
+from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
 
 def load_waypoints(room_no,
                    filename=f"/home/{DIR}/src/ffm_task/waypoints.txt"):
@@ -45,6 +46,7 @@ def callback(req):
     point = Point(waypoint['x'], waypoint['y'], waypoint['z'])
     goal = Pose(position=point, orientation=Quaternion(0.0, 0.0, 0.0, 1.0))
     send_waypoints(client=client, waypoint=goal)
+    result = way_done(data=True)
     return waypointResponse(True)
 
 if __name__ == "__main__":
@@ -53,4 +55,5 @@ if __name__ == "__main__":
     client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
     client.wait_for_server()
     s = rospy.Service('go_to_waypoint', waypoint, callback)
+    way_done = rospy.ServiceProxy('way_done', SetBool)
     rospy.spin()
