@@ -10,7 +10,6 @@
         <param name="use_sim_time" value="false"/>
     </node>
 
-
     <!-- Launch the characteristics analyzer -->
     <node pkg="person_description" type="characteristics.py" name="characteristics" output="screen" />
 

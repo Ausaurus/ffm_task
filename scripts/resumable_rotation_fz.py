@@ -43,7 +43,7 @@ class MainGreeting:
         rospy.wait_for_service("capture_image")
         rospy.loginfo("waiting for next_way service")
         rospy.wait_for_service("next_way")
-        rospy.loginfo("wait for shut_yolo service")
+        rospy.loginfo("wait for shut_depth")
         rospy.wait_for_service("shut_depth")
         self.shutdown_depth = rospy.ServiceProxy("shut_depth", Trigger)
         self.capture_image = rospy.ServiceProxy("capture_image", Trigger)
@@ -81,54 +81,11 @@ class MainGreeting:
             angle += 360
         return angle
 
-    def check_internet_connection(self):
-        try:
-            socket.create_connection(("8.8.8.8", 53), timeout=3)
-            return True
-        except OSError:
-            return False
-
     def clear_json_file(self):
         json_file_path = os.path.join(BASE_PATH, "guest_details.json")
         with open(json_file_path, 'w') as file:
             json.dump([], file)  # Write an empty list to clear the file
         rospy.loginfo("Cleared guest details JSON file.")
-
-    def trigger_gemini_photo(self):
-        gemini_photo_path = os.path.join(BASE_PATH, "scripts/gemini_photo.py")
-        rospy.loginfo(f"Guest {self.guest_count} detected! Triggering gemini_photo.py...")
-
-        play_audio("guest_detected.wav", BASE_PATH)
-
-        # Set GUEST_ID environment variable to pass it to gemini_photo.py
-        env = os.environ.copy()
-        env['GUEST_ID'] = str(self.guest_count)  # Use the guest_count as GUEST_ID
-        env['CURRENT_ROOM'] = self.current_room  # Pass the room name as an environment variable
-
-        # Trigger the gemini_photo script
-        rospy.loginfo("Triggering gemini_photo.py...")
-        subprocess.run([gemini_photo_path], env=env)
-        rospy.loginfo("gemini_photo.py process completed.")
-
-
-    def move_to_operator(self):
-            """
-            Placeholder function to simulate moving to the operator.
-            """
-            rospy.loginfo("Stopping guest detection. Moving to the operator...")
-            print("Simulating the robot moving to the operator...")
-
-    def run_comparison(self):
-        has_internet = self.check_internet_connection()
-
-        if has_internet:
-            compare_script_path = os.path.join(BASE_PATH, "scripts/gemini_compare.py")
-            rospy.loginfo("Running online guest comparison...")
-        else:
-            compare_script_path = os.path.join(BASE_PATH, "scripts/offline_compare.py")
-            rospy.logwarn("No internet connection. Running offline guest comparison...")
-
-        subprocess.run([compare_script_path])
 
     def run(self):
         twist = Twist()

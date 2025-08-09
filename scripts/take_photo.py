@@ -13,6 +13,7 @@ class TakePhoto:
     def __init__(self):
         rospy.init_node('take_photo_node', anonymous=True)
         self.bridge = CvBridge()
+        os.makedirs(BASE_PATH, exist_ok=True)
         self.image_sub = rospy.Subscriber("/zed2/zed_node/rgb_raw/image_raw_color", Image, self.image_callback)
         self.capture_service = rospy.Service('capture_image', Trigger, self.capture_image)
         self.latest_image = None
@@ -31,7 +32,7 @@ class TakePhoto:
 
         try:
             cv_image = self.bridge.imgmsg_to_cv2(self.latest_image, "bgr8")
-            image_path = f"/home/i_h8_ros/ffm_ws/src/ffm_task/person_snapshot{self.number}.jpg"
+            image_path = os.path.join(BASE_PATH, f"person_snapshot{self.number}.jpg")
             cv2.imwrite(image_path, cv_image)
             rospy.loginfo(f"Image saved to {image_path}")
             self.number += 1

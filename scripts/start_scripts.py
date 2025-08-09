@@ -17,7 +17,7 @@ class start_scripts:
         rospy.loginfo("start servicee")
         self.next_waypoint = True
         self.arrive = False
-        self.rotate = f"/home/{DIR}/src/ffm_task/scripts/resume_no_check.py"
+        self.rotate = f"/home/{DIR}/src/ffm_task/scripts/resumable_rotation_fz.py"
         self.room_number = 0
 
     def run_script(self, path):
