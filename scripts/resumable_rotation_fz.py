@@ -44,6 +44,12 @@ class MainGreeting:
         rospy.wait_for_service("capture_image")
         rospy.loginfo("waiting for next_way service")
         rospy.wait_for_service("next_way")
+<<<<<<< HEAD
+=======
+        rospy.loginfo("wait for shut_depth")
+        rospy.wait_for_service("shut_depth")
+        self.shutdown_depth = rospy.ServiceProxy("shut_depth", Trigger)
+>>>>>>> 9bdd14ad0e188d62fa8ea70600c72389d086596c
         self.capture_image = rospy.ServiceProxy("capture_image", Trigger)
         self.go_to_next_way = rospy.ServiceProxy("next_way", SetBool)
 
@@ -90,19 +96,13 @@ class MainGreeting:
             angle += 360
         return angle
 
-    def check_internet_connection(self):
-        try:
-            socket.create_connection(("8.8.8.8", 53), timeout=3)
-            return True
-        except OSError:
-            return False
-
     def clear_json_file(self):
         json_file_path = os.path.join(BASE_PATH, "guest_details.json")
         with open(json_file_path, 'w') as file:
             json.dump([], file)  # Write an empty list to clear the file
         rospy.loginfo("Cleared guest details JSON file.")
 
+<<<<<<< HEAD
     def switch_mux(self, target):
         rospy.wait_for_service('/vel_mux/select')
         try:
@@ -111,6 +111,8 @@ class MainGreeting:
         except rospy.ServiceException as e:
             rospy.logerr(f"Failed to switch mux: {e}")
 
+=======
+>>>>>>> 9bdd14ad0e188d62fa8ea70600c72389d086596c
     def run(self):
         twist = Twist()
         timeout = rospy.Time.now() + rospy.Duration(5)

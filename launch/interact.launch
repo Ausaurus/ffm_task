@@ -10,7 +10,6 @@
         <param name="use_sim_time" value="false"/>
     </node>
 
-
     <!-- Launch the characteristics analyzer -->
     <node pkg="ffm_task" type="characteristics.py" name="characteristics" output="screen" />
 
