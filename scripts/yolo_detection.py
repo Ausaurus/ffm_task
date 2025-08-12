@@ -6,6 +6,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import cv2
 from ultralytics import YOLO
 from std_msgs.msg import Bool
+from config import DIR
 
 class YoloDetector:
     def __init__(self):

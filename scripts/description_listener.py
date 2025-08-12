@@ -68,9 +68,9 @@ class SimplifiedCustomerRecognition:
         rospy.Subscriber('/gemini_description', String, self.gemini_callback)
 
         # Services
-        # rospy.loginfo("wait for shut_name service")
-        # rospy.wait_for_service("shut_name")
-        # self.shut_name = rospy.ServiceProxy("shut_name", Trigger)
+        rospy.loginfo("wait for shut_name service")
+        rospy.wait_for_service("shut_name")
+        self.shut_name = rospy.ServiceProxy("shut_name", Trigger)
 
         rospy.loginfo("🤖 Simplified Customer Recognition System Started")
         rospy.loginfo(f"📊 Known customers: {len(self.customers_database)}")
@@ -84,6 +84,7 @@ class SimplifiedCustomerRecognition:
             try:
                 with open(self.customers_file, 'r') as f:
                     data = json.load(f)
+                    self.customers_database = data
                 rospy.loginfo(f"📂 Loaded {len(data)} customers from database")
                 self.tts_pub.publish(f"📂 Loaded {len(data)} customers from database")
                 return data
@@ -94,8 +95,26 @@ class SimplifiedCustomerRecognition:
     def save_customers_database(self):
         """Save customer database to JSON file"""
         try:
+            with open(self.customers_file, 'r') as f:
+                existing = json.load(f)
+        except FileNotFoundError:
+            # If the file doesn't exist, initialize with an empty list
+            existing = []
+        except json.JSONDecodeError:
+            # Handle cases where the file might be empty or invalid JSON
+            existing = []
+        try:
             with open(self.customers_file, 'w') as f:
-                json.dump(self.customers_database, f, indent=2)
+                if isinstance(existing, list):
+                    existing.append(self.customers_database)
+                else:
+                    # Handle cases where the root element is not a list (e.g., a dictionary)
+                    # You would need to decide how to integrate the new data in this case.
+                    # For simplicity, this example assumes a list as the root.
+                    print("Warning: JSON file root is not a list. Cannot append directly.")
+                    # You might choose to convert it to a list containing the original data + new data
+                    existing = [existing, self.customers_database]
+                json.dump(existing, f, indent=2)
             rospy.loginfo("💾 Customer database saved")
         except Exception as e:
             rospy.logerr(f"❌ Failed to save customers database: {e}")
@@ -131,6 +150,7 @@ class SimplifiedCustomerRecognition:
         self.customer_name = name
         self.name_received = True
         self.tts_pub.publish(f"📛 Customer name received: {name}")
+        self.shut_name()
 
         rospy.loginfo(f"📛 Customer name received: {name}")
         self.current_state = SystemState.CHECKING_CUSTOMER_STATUS
@@ -160,9 +180,10 @@ class SimplifiedCustomerRecognition:
         self.customer_result_pub.publish(result)
 
         rospy.loginfo(f"✅ Existing customer detected. Closing node.")
+        self.pub_resume_rotation.publish(True)
 
         # Close the node
-        rospy.signal_shutdown("Existing customer detected - node closing")
+        rospy.Timer(rospy.Duration(3.0), lambda e: self.end_session(), oneshot=True)
 
     def handle_new_customer(self):
         """Handle new customer - start characteristic analysis"""
@@ -206,6 +227,7 @@ class SimplifiedCustomerRecognition:
 
         self.gemini_description = msg.data
         self.gemini_received = True
+        self.detection_control_pub.publish(Bool(data=False))
 
         rospy.loginfo(f"🧠 Gemini description: {self.gemini_description}")
 

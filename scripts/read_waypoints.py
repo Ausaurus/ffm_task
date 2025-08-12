@@ -38,7 +38,7 @@ def send_waypoints(client, waypoint):
 
     rospy.loginfo(f"Sending waypoint {waypoint}")
     client.send_goal(goal)
-    client.wait_for_result(rospy.Duration.from_sec(40.0))  # Wait for a max of 10 seconds
+    client.wait_for_result()  # Wait for a max of 10 seconds
     rospy.loginfo(f"Waypoint {waypoint} reached or timeout reached")
 
 def callback(req):

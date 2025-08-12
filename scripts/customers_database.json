@@ -1,28 +1,31 @@
-{
-  "Manfred": {
-    "Name": "Manfred",
-    "Camera_description": "Shirt Color: navy, Face Shape: Oblong, Skin Tone: Medium",
-    "Gemini_description": "Male, Not Wearing Spectacles, Yellow V-neck, Medium, Oval, Not visible, sitting on chair",
-    "Gemini_location": null,
-    "Comparison_result": {
-      "Camera_characteristics": {
-        "face_shape": "Oblong",
-        "skin_tone": "Medium"
+[
+  {
+    "A": {
+      "Name": "A",
+      "Camera_description": "Shirt Color: black, Face Shape: Oblong, Skin Tone: Medium",
+      "Gemini_description": "Male, Not Wearing Spectacles, Red and Striped Shirt, Medium, Oval, Cardboard Boxes, Sitting on Cardboard Boxes",
+      "Gemini_location": null,
+      "Comparison_result": {
+        "Camera_characteristics": {
+          "shirt_color": "Black",
+          "face_shape": "Oblong",
+          "skin_tone": "Medium"
+        },
+        "Gemini_characteristics": {
+          "gender": "Male",
+          "glasses": "Wearing spectacles",
+          "shirt_color": "Red",
+          "face_shape": "Oval",
+          "skin_tone": "Medium"
+        },
+        "Matching_characteristics": {
+          "skin_tone": "Medium"
+        },
+        "Match_count": 1
       },
-      "Gemini_characteristics": {
-        "gender": "Male",
-        "glasses": "Wearing spectacles",
-        "shirt_color": "Yellow",
-        "face_shape": "Oval",
-        "skin_tone": "Medium"
-      },
-      "Matching_characteristics": {
-        "skin_tone": "Medium"
-      },
-      "Match_count": 1
-    },
-    "Data_confidence": "high",
-    "Registration_date": "2025-08-06 21:47:51",
-    "Gemini_timeout_occurred": false
+      "Data_confidence": "high",
+      "Registration_date": "2025-08-12 20:49:41",
+      "Gemini_timeout_occurred": false
+    }
   }
-}
+]

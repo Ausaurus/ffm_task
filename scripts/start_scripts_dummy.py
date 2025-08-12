@@ -15,8 +15,8 @@ class start_scripts:
     def __init__(self):
         rospy.init_node("start_scripts")
         rospy.loginfo("waiting for service")
-        rospy.wait_for_service("go_to_waypoint")
-        self.go = rospy.ServiceProxy('go_to_waypoint', waypoint)
+        # rospy.wait_for_service("go_to_waypoint")
+        # self.go = rospy.ServiceProxy('go_to_waypoint', waypoint)
         self.service = rospy.Service('next_way', SetBool, self.rotation_done)
         self.way_done = rospy.Service('way_done', SetBool, self.waypoint_done)
         rospy.loginfo("start servicee")
@@ -25,8 +25,8 @@ class start_scripts:
         self.rotate = f"/home/{DIR}/src/ffm_task/scripts/resumable_rotation_fz.py"
         self.room_number = 0
         self.customers_file = "/home/i_h8_ros/ffm_ws/src/ffm_task/scripts/customers_database.json"
-        self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
-        self.client.wait_for_server()
+        # self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+        # self.client.wait_for_server()
 
     def load_customers_database(self):
         """Load customer database from JSON file"""
@@ -51,6 +51,7 @@ class start_scripts:
                 process.wait()
 
     def run_script(self, path):
+        rospy.loginfo("run resumable_rotation_fz")
         exe = "/usr/bin/python3"
         self.process = subprocess.Popen([exe, path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -70,23 +71,23 @@ class start_scripts:
 
     def rotation_done(self, req):
         rospy.loginfo("done rotation")
-        self.safe_terminate(self.process)
-        rospy.loginfo("killed resumable_rotation_fz")
         customer_num = self.load_customers_database()
         self.next_waypoint = req.data
+        self.safe_terminate(self.process)
         if customer_num >= 3:
             rospy.loginfo("went back to origin")
             self.next_waypoint = False
             self.go_to_origin()
         if self.next_waypoint:
+            rospy.loginfo(self.room_number)
             if self.room_number > 1:
                 self.go_to_origin()
             self.switch_mux('move_base_cmd')
             rospy.loginfo("done change to move_base_cmd")
-            reached = self.go(self.room_number)
+            # reached = self.go(self.room_number)
             self.room_number = self.room_number + 1
             self.next_waypoint = False
-            self.arrive = reached.success
+            # self.arrive = reached.success
         # self.process.terminate()
         return SetBoolResponse(success=True, message="rotation status updated")
 
@@ -94,7 +95,7 @@ class start_scripts:
         self.switch_mux('move_base_cmd')
         point = Point(0, 0, 0)
         goal = Pose(position=point, orientation=Quaternion(0.0, 0.0, 0.0, 1.0))
-        self.send_waypoints(client=self.client, waypoint=goal)
+        # self.send_waypoints(client=self.client, waypoint=goal)
         rospy.loginfo("run report.py")
         path = "/home/i_h8_ros/ffm_ws/src/report/script/report.py"
         subprocess.run(['python3', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -115,10 +116,10 @@ class start_scripts:
     def run(self):
         self.switch_mux('move_base_cmd')
         rospy.loginfo("done change to move_base_cmd")
-        reached = self.go(self.room_number)
+        # reached = self.go(self.room_number)
         self.room_number =+ 1
         self.next_waypoint = False
-        self.arrive = reached.success
+        # self.arrive = reached.success
         while not rospy.is_shutdown():
             if self.arrive:
                 self.run_script(self.rotate)

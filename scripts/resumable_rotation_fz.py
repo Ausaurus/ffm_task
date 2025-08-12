@@ -10,8 +10,8 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 import tf.transformations as tf_trans
 from std_srvs.srv import *
+from topic_tools.srv import MuxSelect
 
-from tts_utils import play_audio
 from config import BASE_PATH, CHAR_PATH
 
 class MainGreeting:
@@ -19,7 +19,7 @@ class MainGreeting:
         rospy.init_node('main_greeting', anonymous=True)
         self.person_centered_sub = rospy.Subscriber('/person_centered', Bool, self.person_centered_callback)
         self.odom_sub = rospy.Subscriber('/odom', Odometry, self.odom_callback)
-        self.vel_pub = rospy.Publisher('/mobile_base/commands/velocity', Twist, queue_size=10)
+        self.vel_pub = rospy.Publisher('/resume_cmd', Twist, queue_size=10)
         self.activate_pub = rospy.Publisher('/activate_model', Bool, queue_size=10)
         self.resume_rotation_sub = rospy.Subscriber('/resume_rotation', Bool, self.resume_rotation_callback)
         self.tts_pub = rospy.Publisher('/text_to_speech', String, queue_size=10)
@@ -34,6 +34,7 @@ class MainGreeting:
         self.current_room = "Unknown Room"  # Initialize current_room
         self.capture = False
         self.launched = True
+        self.ran_interact = False
 
         launch_file = os.path.join(BASE_PATH, "launch/general.launch")
         self.general_launch_process = subprocess.Popen(["roslaunch", launch_file])
@@ -43,9 +44,6 @@ class MainGreeting:
         rospy.wait_for_service("capture_image")
         rospy.loginfo("waiting for next_way service")
         rospy.wait_for_service("next_way")
-        rospy.loginfo("wait for shut_yolo service")
-        rospy.wait_for_service("shut_depth")
-        self.shutdown_depth = rospy.ServiceProxy("shut_depth", Trigger)
         self.capture_image = rospy.ServiceProxy("capture_image", Trigger)
         self.go_to_next_way = rospy.ServiceProxy("next_way", SetBool)
 
@@ -56,6 +54,15 @@ class MainGreeting:
 
         # Clear the JSON file at the start of the session
         self.clear_json_file()
+    def safe_terminate(self, process):
+        if process and process.poll() is None:
+            try:
+                process.terminate()
+                process.wait(timeout=2.0)
+            except subprocess.TimeoutExpired:
+                rospy.logwarn("Process didn't terminate gracefully, killing")
+                process.kill()
+                process.wait()
 
     def person_centered_callback(self, msg):
         self.person_centered = msg.data
@@ -64,6 +71,8 @@ class MainGreeting:
     def resume_rotation_callback(self, msg):
         self.resume_rotation = msg
         self.interact_launch_process.terminate()
+        launch_file = os.path.join(BASE_PATH, "launch/general.launch")
+        self.general_launch_process = subprocess.Popen(["roslaunch", launch_file])
 
     def odom_callback(self, msg):
         orientation_q = msg.pose.pose.orientation
@@ -94,45 +103,18 @@ class MainGreeting:
             json.dump([], file)  # Write an empty list to clear the file
         rospy.loginfo("Cleared guest details JSON file.")
 
-    def trigger_gemini_photo(self):
-        gemini_photo_path = os.path.join(BASE_PATH, "scripts/gemini_photo.py")
-        rospy.loginfo(f"Guest {self.guest_count} detected! Triggering gemini_photo.py...")
-
-        play_audio("guest_detected.wav", BASE_PATH)
-
-        # Set GUEST_ID environment variable to pass it to gemini_photo.py
-        env = os.environ.copy()
-        env['GUEST_ID'] = str(self.guest_count)  # Use the guest_count as GUEST_ID
-        env['CURRENT_ROOM'] = self.current_room  # Pass the room name as an environment variable
-
-        # Trigger the gemini_photo script
-        rospy.loginfo("Triggering gemini_photo.py...")
-        subprocess.run([gemini_photo_path], env=env)
-        rospy.loginfo("gemini_photo.py process completed.")
-
-
-    def move_to_operator(self):
-            """
-            Placeholder function to simulate moving to the operator.
-            """
-            rospy.loginfo("Stopping guest detection. Moving to the operator...")
-            print("Simulating the robot moving to the operator...")
-
-    def run_comparison(self):
-        has_internet = self.check_internet_connection()
-
-        if has_internet:
-            compare_script_path = os.path.join(BASE_PATH, "scripts/gemini_compare.py")
-            rospy.loginfo("Running online guest comparison...")
-        else:
-            compare_script_path = os.path.join(BASE_PATH, "scripts/offline_compare.py")
-            rospy.logwarn("No internet connection. Running offline guest comparison...")
-
-        subprocess.run([compare_script_path])
+    def switch_mux(self, target):
+        rospy.wait_for_service('/vel_mux/select')
+        try:
+            select = rospy.ServiceProxy('/vel_mux/select', MuxSelect)
+            select(target)
+        except rospy.ServiceException as e:
+            rospy.logerr(f"Failed to switch mux: {e}")
 
     def run(self):
         twist = Twist()
         timeout = rospy.Time.now() + rospy.Duration(5)
+        self.switch_mux("resume_cmd")
         while not self.initial_check_done and rospy.Time.now() < timeout:
             rospy.loginfo("Waiting for the initial person detection status...")
             rospy.sleep(0.5)
@@ -161,14 +143,13 @@ class MainGreeting:
                 # self.run_comparison()
                 response_img = self.capture_image()
                 self.capture = response_img.success
-                result = self.shutdown_depth()
-
-                self.tts_pub.publish(f"{result.success}")
 
                 if self.capture:
-                    launch_file = os.path.join(CHAR_PATH, "launch/interact.launch")
+                    self.safe_terminate(self.general_launch_process)
+                    launch_file = os.path.join(BASE_PATH, "launch/interact.launch")
                     self.interact_launch_process = subprocess.Popen(["roslaunch", launch_file])
-                    rospy.loginfo("Launched general.launch")
+                    rospy.loginfo("Launched interact.launch")
+                    self.ran_interact = True
                     self.capture = False
                     self.resume_rotation = False
 
@@ -190,8 +171,9 @@ class MainGreeting:
             self.rate.sleep()
             acc_current_yaw = self.current_yaw
             acc_total_angle = self.calculate_angle_turned(acc_start_yaw, acc_current_yaw)
-        self.general_launch_process.terminate()
-        self.interact_launch_process.terminate()
+        if self.ran_interact:
+            self.safe_terminate(self.interact_launch_process)
+        self.safe_terminate(self.general_launch_process)
         self.go_to_next_way(True)
         #self.move_to_operator()
         # self.run_comparison()
@@ -203,9 +185,8 @@ class MainGreeting:
 
     def __del__(self):
         # Ensure the general_launch_process is terminated when the node is shut down
-        if self.general_launch_process:
-            self.general_launch_process.terminate()
-            self.general_launch_process.wait()
+        self.safe_terminate(self.general_launch_process)
+        self.safe_terminate(self.interact_launch_process)
 
 if __name__ == '__main__':
     try:
