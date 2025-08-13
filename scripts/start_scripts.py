@@ -10,6 +10,7 @@ from config import DIR
 from topic_tools.srv import MuxSelect
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
+from actionlib_msgs.msg import GoalStatus
 
 class start_scripts:
     def __init__(self):
@@ -100,17 +101,37 @@ class start_scripts:
         subprocess.run(['python3', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         rospy.signal_shutdown("done report")
 
-    def send_waypoints(self, client, waypoint):
+    def send_waypoints(self, waypoint):
         goal = MoveBaseGoal()
         goal.target_pose.header.frame_id = "map"
         goal.target_pose.header.stamp = rospy.Time.now()
-
         goal.target_pose.pose = waypoint
 
-        rospy.loginfo(f"Sending waypoint {waypoint}")
-        client.send_goal(goal)
-        client.wait_for_result()  # Wait for a max of 10 seconds
-        rospy.loginfo(f"Waypoint {waypoint} reached or timeout reached")
+        self.retry_count = 0
+        self.max_retries = 3
+        success = False
+
+        while not rospy.is_shutdown() and self.retry_count < self.max_retries:
+            rospy.loginfo(f"Sending waypoint (attempt {self.retry_count+1}/{self.max_retries}): {waypoint.position}")
+            self.client.send_goal(goal)
+            finished = self.client.wait_for_result(rospy.Duration.from_sec(30.0))
+
+            if finished:
+                state = self.client.get_state()
+                if state == GoalStatus.SUCCEEDED:
+                    rospy.loginfo("Waypoint reached successfully!")
+                    success = True
+                    break
+                else:
+                    status_text = GoalStatus.to_string(state)
+                    rospy.logwarn(f"Goal failed with status: {status_text}")
+            else:
+                rospy.logwarn("Action server timed out")
+
+            self.retry_count += 1
+            rospy.sleep(1.0)  # Brief pause before retry
+
+        return success
 
     def run(self):
         self.switch_mux('move_base_cmd')
