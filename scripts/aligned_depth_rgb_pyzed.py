@@ -36,7 +36,7 @@ class zed_filter:
         self.image = sl.Mat()
         self.depth = sl.Mat()
 
-    def shutdown(self):
+    def shutdown(self, req):
         rospy.sleep(1)
         rospy.signal_shutdown("shutdown so that characteristics_rs.py can open realsense")
         return TriggerResponse(success=True, message="depth closed")

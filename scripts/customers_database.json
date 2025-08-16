@@ -1,31 +1,77 @@
-[
-  {
-    "A": {
-      "Name": "A",
-      "Camera_description": "Shirt Color: black, Face Shape: Oblong, Skin Tone: Medium",
-      "Gemini_description": "Male, Not Wearing Spectacles, Red and Striped Shirt, Medium, Oval, Cardboard Boxes, Sitting on Cardboard Boxes",
-      "Gemini_location": null,
-      "Comparison_result": {
-        "Camera_characteristics": {
-          "shirt_color": "Black",
-          "face_shape": "Oblong",
-          "skin_tone": "Medium"
-        },
-        "Gemini_characteristics": {
-          "gender": "Male",
-          "glasses": "Wearing spectacles",
-          "shirt_color": "Red",
-          "face_shape": "Oval",
-          "skin_tone": "Medium"
-        },
-        "Matching_characteristics": {
-          "skin_tone": "Medium"
-        },
-        "Match_count": 1
+{
+  "Lucas": {
+    "Name": "Lucas",
+    "Camera_description": "Shirt Color: gray",
+    "Gemini_description": "Male, Not Wearing Spectacles, Gray Hoodie, Medium, Oval, Long sleeve, Standing near the table",
+    "Gemini_location": "Standing near the table",
+    "Comparison_result": {
+      "Camera_characteristics": {
+        "shirt_color": "Gray"
       },
-      "Data_confidence": "high",
-      "Registration_date": "2025-08-12 20:49:41",
-      "Gemini_timeout_occurred": false
-    }
+      "Gemini_characteristics": {
+        "gender": "Male",
+        "glasses": "Wearing spectacles",
+        "shirt_color": "Gray",
+        "face_shape": "Oval",
+        "skin_tone": "Medium"
+      },
+      "Matching_characteristics": {
+        "shirt_color": "Gray"
+      },
+      "Match_count": 1
+    },
+    "Data_confidence": "high",
+    "Registration_date": "2025-08-16 03:24:10",
+    "Gemini_timeout_occurred": false
+  },
+  "Liam": {
+    "Name": "Liam",
+    "Camera_description": "Gender: Female, Glasses: not wearing spectacles, Shirt Color: black",
+    "Gemini_description": "Male, Not Wearing Spectacles, Gray Hoodie, Medium, Oval, Long sleeve, Standing near the table",
+    "Gemini_location": "Standing near the table",
+    "Comparison_result": {
+      "Camera_characteristics": {
+        "gender": "Female",
+        "glasses": "Wearing spectacles",
+        "shirt_color": "Black"
+      },
+      "Gemini_characteristics": {
+        "gender": "Male",
+        "glasses": "Wearing spectacles",
+        "shirt_color": "Gray",
+        "face_shape": "Oval",
+        "skin_tone": "Medium"
+      },
+      "Matching_characteristics": {
+        "glasses": "Wearing spectacles"
+      },
+      "Match_count": 1
+    },
+    "Data_confidence": "high",
+    "Registration_date": "2025-08-16 03:26:05",
+    "Gemini_timeout_occurred": true
+  },
+  "Noah": {
+    "Name": "Noah",
+    "Camera_description": "Shirt Color: gray",
+    "Gemini_description": "Male, Not Wearing Spectacles, Blue Jean, Medium, Oval, Long sleeve, Sitting",
+    "Gemini_location": null,
+    "Comparison_result": {
+      "Camera_characteristics": {
+        "shirt_color": "Gray"
+      },
+      "Gemini_characteristics": {
+        "gender": "Male",
+        "glasses": "Wearing spectacles",
+        "shirt_color": "Blue",
+        "face_shape": "Oval",
+        "skin_tone": "Medium"
+      },
+      "Matching_characteristics": {},
+      "Match_count": 0
+    },
+    "Data_confidence": "medium",
+    "Registration_date": "2025-08-16 11:34:40",
+    "Gemini_timeout_occurred": false
   }
-]
+}

@@ -1,0 +1,8 @@
+<launch>
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+    <!-- Increase resolution: smaller delta = higher resolution -->
+    <param name="delta" value="0.04"/>  <!-- Default is 0.05, try 0.01-0.02 -->
+
+  </node>
+  <include file="$(find kobuki_keyop)/launch/keyop.launch"/>
+</launch>

@@ -17,12 +17,16 @@ from config import BASE_PATH, CHAR_PATH
 class MainGreeting:
     def __init__(self):
         rospy.init_node('main_greeting', anonymous=True)
-        self.person_centered_sub = rospy.Subscriber('/person_centered', Bool, self.person_centered_callback)
+        rospy.Service('person_centered', SetBool, self.person_centered_callback)
         self.odom_sub = rospy.Subscriber('/odom', Odometry, self.odom_callback)
         self.vel_pub = rospy.Publisher('/resume_cmd', Twist, queue_size=10)
         self.activate_pub = rospy.Publisher('/activate_model', Bool, queue_size=10)
         self.resume_rotation_sub = rospy.Subscriber('/resume_rotation', Bool, self.resume_rotation_callback)
         self.tts_pub = rospy.Publisher('/text_to_speech', String, queue_size=10)
+
+        # Remove the old topic-based communication
+        # self.pub_report = rospy.Publisher('report', String, queue_size=10)
+        # self.pub_sub = rospy.Subscriber('report', String, self.enough)
 
         self.person_centered = False
         self.initial_check_done = False
@@ -35,6 +39,7 @@ class MainGreeting:
         self.capture = False
         self.launched = True
         self.ran_interact = False
+        self.ask_out = False  # Initialize ask_out with default value
 
         launch_file = os.path.join(BASE_PATH, "launch/general.launch")
         self.general_launch_process = subprocess.Popen(["roslaunch", launch_file])
@@ -43,16 +48,19 @@ class MainGreeting:
         rospy.loginfo("waiting for capture_image service")
         rospy.wait_for_service("capture_image")
         rospy.loginfo("waiting for next_way service")
-        rospy.wait_for_service("next_way")
-<<<<<<< HEAD
-=======
+        # rospy.wait_for_service("next_way")
         rospy.loginfo("wait for shut_depth")
         rospy.wait_for_service("shut_depth")
+
+        # Wait for the report update service
+        rospy.loginfo("waiting for report_update service")
+        # rospy.wait_for_service("report_update")
+
+        # Initialize service proxies
         self.shutdown_depth = rospy.ServiceProxy("shut_depth", Trigger)
->>>>>>> 9bdd14ad0e188d62fa8ea70600c72389d086596c
         self.capture_image = rospy.ServiceProxy("capture_image", Trigger)
         self.go_to_next_way = rospy.ServiceProxy("next_way", SetBool)
-
+        self.report_update_service = rospy.ServiceProxy("report_update", SetBool)
 
         self.rate = rospy.Rate(10)
 
@@ -60,6 +68,35 @@ class MainGreeting:
 
         # Clear the JSON file at the start of the session
         self.clear_json_file()
+
+    def check_enough_people(self):
+        """Check if there are enough people using the service call"""
+        try:
+            rospy.loginfo("Calling report_update service to check people count...")
+            # Call the service with dummy data (the service doesn't use the request data)
+            response = self.report_update_service(True)
+
+            if response.success:
+                rospy.loginfo(f"Service response: {response.message}")
+                self.ask_out = False  # Enough people, don't ask to come out
+                return True
+            else:
+                rospy.loginfo(f"Service response: {response.message}")
+                self.ask_out = True   # Not enough people, need to ask to come out
+                return False
+
+        except rospy.ServiceException as e:
+            rospy.logerr(f"Failed to call report_update service: {e}")
+            self.ask_out = True  # Default to asking people to come out on error
+            return False
+
+    # Remove the old topic-based method
+    # def enough(self, msg):
+    #     if msg == "enough":
+    #         self.ask_out = False
+    #     if msg == "not enough":
+    #         self.ask_out = True
+
     def safe_terminate(self, process):
         if process and process.poll() is None:
             try:
@@ -73,12 +110,12 @@ class MainGreeting:
     def person_centered_callback(self, msg):
         self.person_centered = msg.data
         self.initial_check_done = True
+        return SetBoolResponse(success=True, message="update person centered")
 
     def resume_rotation_callback(self, msg):
         self.resume_rotation = msg
-        self.interact_launch_process.terminate()
-        launch_file = os.path.join(BASE_PATH, "launch/general.launch")
-        self.general_launch_process = subprocess.Popen(["roslaunch", launch_file])
+        if hasattr(self, 'interact_launch_process'):
+            self.interact_launch_process.terminate()
 
     def odom_callback(self, msg):
         orientation_q = msg.pose.pose.orientation
@@ -102,7 +139,6 @@ class MainGreeting:
             json.dump([], file)  # Write an empty list to clear the file
         rospy.loginfo("Cleared guest details JSON file.")
 
-<<<<<<< HEAD
     def switch_mux(self, target):
         rospy.wait_for_service('/vel_mux/select')
         try:
@@ -111,8 +147,6 @@ class MainGreeting:
         except rospy.ServiceException as e:
             rospy.logerr(f"Failed to switch mux: {e}")
 
-=======
->>>>>>> 9bdd14ad0e188d62fa8ea70600c72389d086596c
     def run(self):
         twist = Twist()
         timeout = rospy.Time.now() + rospy.Duration(5)
@@ -128,9 +162,14 @@ class MainGreeting:
         acc_start_yaw = self.current_yaw
         acc_total_angle = 0
         while (not rospy.is_shutdown()) and acc_total_angle < 345:
-            twist.angular.z = 0.3
+            twist.angular.z = 0.5
             self.vel_pub.publish(twist)
             if self.person_centered:
+                # Use service call instead of topic publish
+                enough_people = self.check_enough_people()
+                rospy.loginfo(f"Enough people check result: {enough_people}, ask_out: {self.ask_out}")
+
+                self.person_centered = False
                 twist.angular.z = 0
                 self.vel_pub.publish(twist)
                 self.start_yaw = self.current_yaw
@@ -146,7 +185,7 @@ class MainGreeting:
                 response_img = self.capture_image()
                 self.capture = response_img.success
 
-                if self.capture:
+                if self.capture and (not self.ask_out):
                     self.safe_terminate(self.general_launch_process)
                     launch_file = os.path.join(BASE_PATH, "launch/interact.launch")
                     self.interact_launch_process = subprocess.Popen(["roslaunch", launch_file])
@@ -155,21 +194,27 @@ class MainGreeting:
                     self.capture = False
                     self.resume_rotation = False
 
+                else:
+                    subprocess.run(["rosrun", "ffm_task", "name.py"])
+
                 # Wait until the resume rotation signal is received
                 rospy.loginfo("Waiting for /resume_rotation to be True...")
-                while not self.resume_rotation and not rospy.is_shutdown():
+                while (not self.resume_rotation and self.ask_out) and not rospy.is_shutdown():
                     self.rate.sleep()
 
                 rospy.loginfo("Resuming rotation after receiving /resume_rotation signal.")
 
                 angle = self.calculate_angle_turned(self.start_yaw, self.current_yaw)
-                while angle < 15:
+                while angle < 5:
                     rospy.loginfo(f"Start forced rotation, {angle}")
-                    twist.angular.z = 0.31
+                    twist.angular.z = 0.5
                     self.vel_pub.publish(twist)
                     angle = self.calculate_angle_turned(self.start_yaw, self.current_yaw)
                     self.rate.sleep()
-                rospy.sleep(1.0)
+                if not self.ask_out:
+                    launch_file = os.path.join(BASE_PATH, "launch/general.launch")
+                    self.general_launch_process = subprocess.Popen(["roslaunch", launch_file])
+                    rospy.sleep(1.0)
             self.rate.sleep()
             acc_current_yaw = self.current_yaw
             acc_total_angle = self.calculate_angle_turned(acc_start_yaw, acc_current_yaw)
@@ -188,7 +233,8 @@ class MainGreeting:
     def __del__(self):
         # Ensure the general_launch_process is terminated when the node is shut down
         self.safe_terminate(self.general_launch_process)
-        self.safe_terminate(self.interact_launch_process)
+        if hasattr(self, 'interact_launch_process'):
+            self.safe_terminate(self.interact_launch_process)
 
 if __name__ == '__main__':
     try:

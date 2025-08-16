@@ -1,0 +1,10 @@
+<launch>
+    <!-- Other nodes -->
+    <node
+        pkg="ffm_task"
+        name="resumable_rotation"
+        type="resumable_rotation_fz.py"
+        output="screen"
+        respawn="false"
+    />
+</launch>

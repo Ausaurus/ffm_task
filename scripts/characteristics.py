@@ -84,14 +84,16 @@ def detection_control_callback(msg):
     global detection_enabled
     detection_enabled = msg.data
     status = "ENABLED" if detection_enabled else "DISABLED"
-    rospy.loginfo(f"📡 Camera detection {status}")
+    rospy.loginfo(f" Camera detection {status}")
 
 def control_callback(msg):
+    global detection_enabled
     if msg.data == "stop":
-        rospy.loginfo("📷 Camera node shutting down by request")
-        zed.close()
-        cv2.destroyAllWindows()
-        rospy.signal_shutdown("Camera stopped externally")
+        rospy.loginfo("Camera node shutting down by request")
+        detection_enabled = False
+        # zed.close()
+        # cv2.destroyAllWindows()
+        # rospy.signal_shutdown("Camera stopped externally")
 
 rospy.Subscriber('/enable_detection', Bool, detection_control_callback)
 rospy.Subscriber("/camera_control", String, control_callback)
@@ -100,14 +102,19 @@ rospy.Subscriber("/camera_control", String, control_callback)
 text_y_offset = 30
 line_height = 25
 
-rospy.loginfo("🎥 Camera detection node started")
+rospy.loginfo("Camera detection node started")
 
 while not rospy.is_shutdown():
-    if zed.grab(runtime) == sl.ERROR_CODE.SUCCESS:
-        zed.retrieve_image(mat, sl.VIEW.LEFT)
-        frame = mat.get_data()
-    else:
-        continue
+    try:
+        if zed.grab(runtime) == sl.ERROR_CODE.SUCCESS:
+            zed.retrieve_image(mat, sl.VIEW.LEFT)
+            frame = mat.get_data()
+        else:
+            rospy.logwarn("Camera grab failed, retrying...")
+            rospy.sleep(0.1)
+    except Exception as e:
+        rospy.logerr(f"Camera error: {str(e)}")
+        break  # Exit loop on critical error
 
     # Initialize text position
     text_y = text_y_offset
@@ -292,4 +299,4 @@ while not rospy.is_shutdown():
 
 zed.close()
 cv2.destroyAllWindows()
-rospy.loginfo("🎥 Camera detection node stopped")
+rospy.loginfo("Camera detection node stopped")

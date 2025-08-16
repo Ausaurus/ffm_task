@@ -7,7 +7,6 @@
 
     <!-- Launch Gemini capture and analysis node -->
     <node pkg="ffm_task" type="capture_and_analyze.py" name="capture_and_analyze" output="screen">
-        <param name="use_sim_time" value="false"/>
     </node>
 
     <!-- Launch the characteristics analyzer -->

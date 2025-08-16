@@ -4,8 +4,10 @@ import subprocess
 import os
 import json
 import actionlib
+import threading
 from map_search.srv import *
 from std_srvs.srv import *
+from std_msgs.msg import Int32, String, Bool
 from config import DIR
 from topic_tools.srv import MuxSelect
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
@@ -20,14 +22,38 @@ class start_scripts:
         self.go = rospy.ServiceProxy('go_to_waypoint', waypoint)
         self.service = rospy.Service('next_way', SetBool, self.rotation_done)
         self.way_done = rospy.Service('way_done', SetBool, self.waypoint_done)
-        rospy.loginfo("start servicee")
+        self.pub_report = rospy.Publisher('report', Bool, queue_size=10)
+        self.report_done = rospy.Subscriber('rep_done', Bool, self.report_state)
+        self.spin_pub = rospy.Publisher('/rotator/control', String, queue_size=10)
+        self.spin_sub = rospy.Subscriber('/rotator/status', String,
+                                         self.spin_status)
+        self.name_pub = rospy.Publisher('/name_what', String, queue_size=10)
+        self.feature_sub = rospy.Subscriber('/feature_done', Bool,
+                                            self.got_feature)
         self.next_waypoint = True
+        self.customer_number = 1
+        self.skip = 0
         self.arrive = False
-        self.rotate = f"/home/{DIR}/src/ffm_task/scripts/resumable_rotation_fz.py"
+        self.rot_done = False
+        self.rep_done = True
+        self.centered = False
+        self.feature = False
+        self.rotate = "/home/i_h8_ros/ffm_ws/src/nav/scripts/spin.py"
         self.room_number = 0
         self.customers_file = "/home/i_h8_ros/ffm_ws/src/ffm_task/scripts/customers_database.json"
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         self.client.wait_for_server()
+        self.rate = rospy.Rate(10)
+
+    def got_feature(self, msg):
+        if msg.data:
+            rospy.loginfo("got feature")
+            self.feature = True
+
+    def spin_status(self, msg):
+        if msg.data == "person_detected":
+            rospy.loginfo("got centered")
+            self.centered = True
 
     def load_customers_database(self):
         """Load customer database from JSON file"""
@@ -51,10 +77,6 @@ class start_scripts:
                 process.kill()
                 process.wait()
 
-    def run_script(self, path):
-        exe = "/usr/bin/python3"
-        self.process = subprocess.Popen([exe, path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
     def switch_mux(self, target):
         rospy.loginfo("wait for vel_mux")
         rospy.wait_for_service('/vel_mux/select')
@@ -67,39 +89,30 @@ class start_scripts:
 
     def waypoint_done(self, req):
         self.arrive = req.data
+        rospy.loginfo(f"service way_done: {self.arrive}")
         return SetBoolResponse(success=True, message="waypoint status updated")
 
     def rotation_done(self, req):
         rospy.loginfo("done rotation")
         self.safe_terminate(self.process)
         rospy.loginfo("killed resumable_rotation_fz")
-        customer_num = self.load_customers_database()
-        self.next_waypoint = req.data
-        if customer_num >= 3:
-            rospy.loginfo("went back to origin")
-            self.next_waypoint = False
-            self.go_to_origin()
-        if self.next_waypoint:
-            if self.room_number > 1:
-                self.go_to_origin()
-            self.switch_mux('move_base_cmd')
-            rospy.loginfo("done change to move_base_cmd")
-            reached = self.go(self.room_number)
-            self.room_number = self.room_number + 1
-            self.next_waypoint = False
-            self.arrive = reached.success
-        # self.process.terminate()
+        self.rot_done = True
         return SetBoolResponse(success=True, message="rotation status updated")
 
     def go_to_origin(self):
         self.switch_mux('move_base_cmd')
         point = Point(0, 0, 0)
-        goal = Pose(position=point, orientation=Quaternion(0.0, 0.0, 0.0, 1.0))
-        self.send_waypoints(client=self.client, waypoint=goal)
-        rospy.loginfo("run report.py")
-        path = "/home/i_h8_ros/ffm_ws/src/report/script/report.py"
-        subprocess.run(['python3', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        rospy.signal_shutdown("done report")
+        goal = Pose(position=point, orientation=Quaternion(0, 0, 0.8939967, -0.4480736))
+        self.send_waypoints(waypoint=goal)
+        self.rep_done = False
+        self.pub_report.publish(True)
+
+    def go_to_livingroom(self):
+        self.switch_mux('move_base_cmd')
+        reached = self.go(2)
+
+    def report_state(self, msg):
+        self.rep_done = msg
 
     def send_waypoints(self, waypoint):
         goal = MoveBaseGoal()
@@ -134,17 +147,104 @@ class start_scripts:
         return success
 
     def run(self):
-        self.switch_mux('move_base_cmd')
-        rospy.loginfo("done change to move_base_cmd")
-        reached = self.go(self.room_number)
-        self.room_number =+ 1
-        self.next_waypoint = False
-        self.arrive = reached.success
-        while not rospy.is_shutdown():
+        self.switch_mux("move_base_cmd")
+        while self.customer_number <= 3:
+            skipped = 0
+
+            rospy.loginfo("waiting for report finish")
+            while not self.rep_done:
+                self.rate.sleep()
+
+            rospy.loginfo("going to living room")
+            self.arrive = self.go(0)
+
             if self.arrive:
-                self.run_script(self.rotate)
-                self.arrive = False
+                self.switch_mux("resume_cmd")
+                rospy.loginfo("start spinning")
+                self.spin_pub.publish("start")
+
+            if self.skip == 1:
+                rospy.loginfo("waiting for person to be centered")
+                while not self.centered:
+                    self.rate.sleep()
+
+                rospy.loginfo("skip current customer")
+                self.centered = False
+                self.spin_pub.publish("continue")
+                rospy.loginfo("waiting for person to be centered")
+                while not self.centered:
+                    self.rate.sleep()
+
+            elif self.skip == 2:
+                rospy.loginfo("waiting for person to be centered")
+                while not self.centered:
+                    self.rate.sleep()
+
+                rospy.loginfo("skip current customer")
+                self.centered = False
+                self.spin_pub.publish("continue")
+                rospy.loginfo("waiting for person to be centered")
+                while not self.centered:
+                    self.rate.sleep()
+
+                rospy.loginfo("skip current customer")
+                self.centered = False
+                self.spin_pub.publish("continue")
+                rospy.loginfo("waiting for person to be centered")
+                while not self.centered:
+                    self.rate.sleep()
+
+            elif self.skip == 3:
+                rospy.loginfo("waiting for person to be centered")
+                while not self.centered:
+                    self.rate.sleep()
+
+                rospy.loginfo("skip current customer")
+                self.centered = False
+                self.spin_pub.publish("continue")
+                rospy.loginfo("waiting for person to be centered")
+                while not self.centered:
+                    self.rate.sleep()
+
+                rospy.loginfo("skip current customer")
+                self.centered = False
+                self.spin_pub.publish("continue")
+                rospy.loginfo("waiting for person to be centered")
+                while not self.centered:
+                    self.rate.sleep()
+
+                rospy.loginfo("skip current customer")
+                self.centered = False
+                self.spin_pub.publish("continue")
+                rospy.loginfo("waiting for person to be centered")
+                while not self.centered:
+                    self.rate.sleep()
+
+            else:
+                rospy.loginfo("waiting for person to be ceneterd")
+                while not self.centered:
+                    self.rate.sleep()
+
+            rospy.loginfo("run feature scan")
+            self.name_pub.publish("What's ya name")
+
+            rospy.loginfo("waiting for feature scan to finish")
+            while not self.feature:
+                self.rate.sleep()
+
+            self.skip += 1
+            self.centered = False
+            self.feature = False
+
+            rospy.loginfo("going back to origin")
+            self.go_to_origin()
+            self.customer_number += 1
+
+        rospy.signal_shutdown("done")
+
+
 
 if __name__ == "__main__":
     start = start_scripts()
     start.run()
+    rospy.spin()

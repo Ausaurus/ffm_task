@@ -23,12 +23,14 @@ signal.signal(signal.SIGALRM, handler)
 def detection_callback(msg):
     global detection_enabled
     detection_enabled = msg.data
-    rospy.loginfo(f"🔄 Detection {'enabled' if detection_enabled else 'disabled'}")
+    rospy.loginfo(f"Detection {'enabled' if detection_enabled else 'disabled'}")
 
 def control_callback(msg):
+    global detection_enabled
     if msg.data.lower() == "stop":
-        rospy.loginfo("🛑 Gemini node received stop signal")
-        rospy.signal_shutdown("Shutdown requested by /gemini_control")
+        rospy.loginfo("Gemini node received stop signal")
+        detection_enabled = False
+        # rospy.signal_shutdown("Shutdown requested by /gemini_control")
 
 def analyze_image(image_path):
     prompt = (
@@ -39,8 +41,8 @@ def analyze_image(image_path):
         "- Shirt Color and Type\n"
         "- Skin Tone (Fair, Medium, or Dark only)\n"
         "- Face Shape (Round, Oval, Square, or Oblong only)\n"
-        "- Chair Description\n"
-        "- Description of the person's relative location based on their surroundings "
+        "- Long sleeve or short sleeve\n"
+        "- Sitting or Standing\n"
         "(e.g., sitting on the couch, standing beside the lamp). \n"
         "Use only the allowed words. Do not write full sentences or extra details."
     )
@@ -64,7 +66,7 @@ def main():
 
     image_path = "/tmp/person_snapshot.jpg"  # Shared snapshot file
 
-    rospy.loginfo("📷 Gemini node started, waiting for snapshot...")
+    rospy.loginfo("Gemini node started, waiting for snapshot...")
     rate = rospy.Rate(1)  # 1 Hz check for new snapshot
 
     last_mod_time = None
@@ -83,6 +85,7 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+        rospy.spin()
     except rospy.ROSInterruptException:
         pass
 

@@ -1,10 +1,16 @@
 <launch>
     <node pkg="ffm_task" name="start_scripts" type="start_scripts.py" output="screen" />
+    <node pkg="ffm_task" name="spin_intel" type="spin_intel.py" output="screen" />
     <node pkg="ffm_task" name="read_waypoints" type="read_waypoints.py" output="screen" />
+    <node pkg="ffm_task" name="report" type="report.py" output="screen" />
+    <node pkg="ffm_task" name="kill_switch" type="ros_kill_switch.py" output="screen" />
     <include
     file="/home/i_h8_ros/ffm_ws/src/nav/launch/navigation.launch"
     />
     <include
     file="/home/i_h8_ros/ffm_ws/src/ffm_task/launch/vel_mux.launch"
+    />
+    <include
+    file="/home/i_h8_ros/ffm_ws/src/ffm_task/launch/interact.launch"
     />
 </launch>

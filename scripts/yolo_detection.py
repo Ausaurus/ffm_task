@@ -7,6 +7,7 @@ import cv2
 from ultralytics import YOLO
 from std_msgs.msg import Bool
 from config import DIR
+from std_srvs.srv import SetBool, SetBoolRequest
 
 class YoloDetector:
     def __init__(self):
@@ -17,7 +18,7 @@ class YoloDetector:
         self.person_class_id = 0
         self.center_threshold = 20
         self.confidence_threshold = 0.7  # Confidence threshold for detections
-        self.centered_pub = rospy.Publisher('/person_centered', Bool, queue_size=10)
+        self.centered_srv = rospy.ServiceProxy('/person_centered', SetBool)
         self.image_sub = rospy.Subscriber('/filter_rgb', Image, self.image_callback)
 
         # Set this to True to enable drawing and streaming
@@ -75,7 +76,7 @@ class YoloDetector:
                         closest_distance = distance_to_center
                         person_at_center = distance_to_center <= self.center_threshold
 
-        self.centered_pub.publish(Bool(person_at_center))
+        self.centered_srv(data=person_at_center)
 
         if self.enable_streaming:
             self.draw_and_stream_bounding_box(frame, detected_boxes, num_people_above_threshold, person_at_center)

@@ -17,7 +17,7 @@ class WaypointExecutor:
         rospy.loginfo("Connected to move_base action server")
         self.current_goal = None
         self.retry_count = 0
-        self.max_retries = 3  # Maximum retry attempts
+        self.max_retries = 2  # Maximum retry attempts
 
     def send_waypoint(self, waypoint):
         goal = MoveBaseGoal()
@@ -26,7 +26,7 @@ class WaypointExecutor:
         goal.target_pose.pose = waypoint
 
         self.retry_count = 0
-        success = False
+        success = True
 
         while not rospy.is_shutdown() and self.retry_count < self.max_retries:
             rospy.loginfo(f"Sending waypoint (attempt {self.retry_count+1}/{self.max_retries}): {waypoint.position}")
@@ -78,15 +78,16 @@ def callback(req, executor):
 
     # Notify way_done service about completion status
     try:
-        way_done_proxy = rospy.ServiceProxy('way_done', SetBool)
-        way_done_proxy(success)
+        way_done_proxy(data=True)
     except rospy.ServiceException as e:
         rospy.logerr(f"Service call to way_done failed: {e}")
 
-    return waypointResponse(success)
+    return waypointResponse(success=True)
 
 if __name__ == "__main__":
     rospy.init_node("read_waypoints")
     executor = WaypointExecutor()
     s = rospy.Service('go_to_waypoint', waypoint, lambda req: callback(req, executor))
+    rospy.wait_for_service("way_done")
+    way_done_proxy = rospy.ServiceProxy('way_done', SetBool)
     rospy.spin()

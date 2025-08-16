@@ -34,7 +34,7 @@ class SimplifiedCustomerRecognition:
 
         # System state
         self.current_state = SystemState.COLLECTING_NAME
-        self.gemini_timeout = rospy.get_param("~gemini_timeout", 15.0)
+        self.gemini_timeout = rospy.get_param("~gemini_timeout", 20.0)
 
         # Current session data
         self.customer_name = None
@@ -60,7 +60,7 @@ class SimplifiedCustomerRecognition:
         self.customer_result_pub = rospy.Publisher('/customer_result', String, queue_size=10)
         self.camera_control_pub = rospy.Publisher('/camera_control', String, queue_size=1)
         self.gemini_control_pub = rospy.Publisher("/gemini_control", String, queue_size=1)
-        self.pub_resume_rotation = rospy.Publisher('/resume_rotation', Bool, queue_size=10)
+        self.feature_pub = rospy.Publisher('/feature_done', Bool, queue_size=10)
 
         # Subscribers
         rospy.Subscriber('/customer_name', String, self.name_callback)
@@ -68,9 +68,9 @@ class SimplifiedCustomerRecognition:
         rospy.Subscriber('/gemini_description', String, self.gemini_callback)
 
         # Services
-        rospy.loginfo("wait for shut_name service")
-        rospy.wait_for_service("shut_name")
-        self.shut_name = rospy.ServiceProxy("shut_name", Trigger)
+        # rospy.wait_for_service("shut_name")
+        # rospy.loginfo("got shut_name service")
+        # self.shut_name = rospy.ServiceProxy("shut_name", Trigger)
 
         rospy.loginfo("🤖 Simplified Customer Recognition System Started")
         rospy.loginfo(f"📊 Known customers: {len(self.customers_database)}")
@@ -79,45 +79,61 @@ class SimplifiedCustomerRecognition:
         self.start_session()
 
     def load_customers_database(self):
-        """Load customer database from JSON file"""
         if os.path.exists(self.customers_file):
             try:
                 with open(self.customers_file, 'r') as f:
                     data = json.load(f)
-                    self.customers_database = data
-                rospy.loginfo(f"📂 Loaded {len(data)} customers from database")
-                self.tts_pub.publish(f"📂 Loaded {len(data)} customers from database")
-                return data
+                    # Convert list of single-key dicts to a flat dictionary
+                    if isinstance(data, list):
+                        database = {}
+                        for entry in data:
+                            name = list(entry.keys())[0]  # Get the name (key)
+                            database[name] = entry[name]   # Store under name
+                        return database
+                    return data  # Already in dict format
             except Exception as e:
-                rospy.logerr(f"❌ Failed to load customers database: {e}")
-        return {}
+                rospy.logerr(f"Failed to load database: {e}")
+        return {}  # Fallback to empty dict
 
     def save_customers_database(self):
         """Save customer database to JSON file"""
         try:
-            with open(self.customers_file, 'r') as f:
-                existing = json.load(f)
-        except FileNotFoundError:
-            # If the file doesn't exist, initialize with an empty list
-            existing = []
-        except json.JSONDecodeError:
-            # Handle cases where the file might be empty or invalid JSON
-            existing = []
-        try:
+            # Load existing data
+            if os.path.exists(self.customers_file):
+                with open(self.customers_file, 'r') as f:
+                    existing_data = json.load(f)
+            else:
+                existing_data = {}
+
+            # Ensure existing_data is a dictionary
+            if isinstance(existing_data, list):
+                # Convert list format to dictionary format
+                converted_data = {}
+                for entry in existing_data:
+                    if isinstance(entry, dict):
+                        # If entry is a single customer record with nested structure
+                        for name, customer_info in entry.items():
+                            converted_data[name] = customer_info
+                existing_data = converted_data
+
+            # Update existing data with current database
+            existing_data.update(self.customers_database)
+
+            # Save back to file
             with open(self.customers_file, 'w') as f:
-                if isinstance(existing, list):
-                    existing.append(self.customers_database)
-                else:
-                    # Handle cases where the root element is not a list (e.g., a dictionary)
-                    # You would need to decide how to integrate the new data in this case.
-                    # For simplicity, this example assumes a list as the root.
-                    print("Warning: JSON file root is not a list. Cannot append directly.")
-                    # You might choose to convert it to a list containing the original data + new data
-                    existing = [existing, self.customers_database]
-                json.dump(existing, f, indent=2)
-            rospy.loginfo("💾 Customer database saved")
+                json.dump(existing_data, f, indent=2)
+
+            rospy.loginfo("💾 Customer database saved successfully")
+
         except Exception as e:
             rospy.logerr(f"❌ Failed to save customers database: {e}")
+            # Fallback: save only current data
+            try:
+                with open(self.customers_file, 'w') as f:
+                    json.dump(self.customers_database, f, indent=2)
+                rospy.loginfo("💾 Customer database saved (fallback mode)")
+            except Exception as fallback_error:
+                rospy.logerr(f"❌ Fallback save also failed: {fallback_error}")
 
     def publish_system_status(self):
         """Publish current system status"""
@@ -143,14 +159,14 @@ class SimplifiedCustomerRecognition:
 
     def name_callback(self, msg):
         """Handle customer name input"""
-        if self.current_state != SystemState.COLLECTING_NAME:
-            return
+        # if self.current_state != SystemState.COLLECTING_NAME:
+        #     return
 
         name = msg.data.strip().title()
         self.customer_name = name
         self.name_received = True
-        self.tts_pub.publish(f"📛 Customer name received: {name}")
-        self.shut_name()
+        self.tts_pub.publish(f"Hi {self.customer_name}")
+        # self.shut_name()
 
         rospy.loginfo(f"📛 Customer name received: {name}")
         self.current_state = SystemState.CHECKING_CUSTOMER_STATUS
@@ -163,7 +179,7 @@ class SimplifiedCustomerRecognition:
             self.handle_existing_customer()
         else:
             # New customer - start characteristic analysis
-            self.tts_pub.publish("got new customer")
+            self.tts_pub.publish("new customer")
             self.handle_new_customer()
 
     def handle_existing_customer(self):
@@ -172,7 +188,7 @@ class SimplifiedCustomerRecognition:
         rospy.loginfo(f"👋 Existing customer found: {self.customer_name}")
 
         # Greet the existing customer
-        response = f"Welcome back, {self.customer_name}! I already know you."
+        response = f"I know you {self.customer_name}"
         self.tts_pub.publish(response)
 
         # Publish result
@@ -180,7 +196,7 @@ class SimplifiedCustomerRecognition:
         self.customer_result_pub.publish(result)
 
         rospy.loginfo(f"✅ Existing customer detected. Closing node.")
-        self.pub_resume_rotation.publish(True)
+        self.feature_pub.publish(True)
 
         # Close the node
         rospy.Timer(rospy.Duration(3.0), lambda e: self.end_session(), oneshot=True)
@@ -189,10 +205,10 @@ class SimplifiedCustomerRecognition:
         """Handle new customer - start characteristic analysis"""
         rospy.loginfo(f"🆕 New customer detected: {self.customer_name}")
 
-        self.tts_pub.publish(f"Hi, {self.customer_name}! Look at the camera. Three! Two! One!")
+        self.tts_pub.publish("Look at the camera")
+        self.detection_control_pub.publish(Bool(data=True))
 
         # ✅ Start detection only for new customers
-        self.detection_control_pub.publish(Bool(data=True))
         self.current_state = SystemState.ANALYZING_CHARACTERISTICS
         self.start_gemini_timeout()
         self.publish_system_status()
@@ -227,7 +243,7 @@ class SimplifiedCustomerRecognition:
 
         self.gemini_description = msg.data
         self.gemini_received = True
-        self.detection_control_pub.publish(Bool(data=False))
+        # self.detection_control_pub.publish(Bool(data=False))
 
         rospy.loginfo(f"🧠 Gemini description: {self.gemini_description}")
 
@@ -260,10 +276,11 @@ class SimplifiedCustomerRecognition:
 
         comparison_result = {}
         data_confidence = "low"
+        location_info = None
 
         if self.gemini_received:
             gemini_chars = self.extract_characteristics(self.gemini_description, "gemini")
-            location_info = self.extract_location_from_gemini(self.gemini_description)
+            location_info, got = self.extract_location_from_gemini(self.gemini_description)
             # Find matching characteristics
             matching_chars = self.find_matching_characteristics(camera_chars, gemini_chars)
 
@@ -285,7 +302,7 @@ class SimplifiedCustomerRecognition:
                 'Match_count': len(camera_chars),
                 'Note': 'Gemini timed out'
             }
-            rospy.loginfo("📷 Using camera data only (Gemini timeout) — assuming full match")
+            rospy.loginfo("Using camera data only (Gemini timeout) — assuming full match")
 
 
         # Save customer to database
@@ -305,11 +322,11 @@ class SimplifiedCustomerRecognition:
 
         # Respond to customer
         if data_confidence == "high":
-            response = f"Perfect! {self.customer_name}, I've successfully recorded your information with high confidence."
+            response = f"Recorded {self.customer_name} with high confidence"
         elif data_confidence == "medium":
-            response = f"Thank you, {self.customer_name}! I've recorded your information with medium confidence."
+            response = f"Recorded {self.customer_name} with medium confidence"
         else:
-            response = f"Thank you, {self.customer_name}! I've recorded your basic information."
+            response = f"Recorded {self.customer_name} with low confidence"
 
         self.tts_pub.publish(response)
 
@@ -322,7 +339,7 @@ class SimplifiedCustomerRecognition:
         rospy.loginfo(f"📊 Comparison result: {comparison_result}")
 
         self.current_state = SystemState.SESSION_COMPLETE
-        self.pub_resume_rotation.publish(True)
+        self.feature_pub.publish(True)
 
         # End session
         rospy.Timer(rospy.Duration(3.0), lambda e: self.end_session(), oneshot=True)
@@ -373,15 +390,15 @@ class SimplifiedCustomerRecognition:
     def extract_location_from_gemini(self, description):
         """Extract relative location description from Gemini text"""
         if not description:
-            return None
+            return None, False
 
         lines = description.split(",")
         for line in lines:
             line = line.strip()
             # Heuristic: assume location is a phrase like "sitting on the couch", "standing beside the table"
             if any(prep in line for prep in ["on the", "beside the", "next to", "near the", "at the"]):
-                return line
-        return None
+                return line, True
+        return None, False
 
     def find_matching_characteristics(self, camera_chars, gemini_chars):
         """Find characteristics that match between camera and Gemini"""
@@ -402,10 +419,10 @@ class SimplifiedCustomerRecognition:
         # Disable camera detection
         self.detection_control_pub.publish(Bool(data=False))
 
-        self.tts_pub.publish("Thank you for visiting! Registration complete.")
+        self.tts_pub.publish("Registration done")
 
         # Close the node
-        rospy.signal_shutdown("Session completed successfully")
+        # rospy.signal_shutdown("Session completed successfully")
 
 if __name__ == '__main__':
     try:
