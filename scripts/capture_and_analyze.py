@@ -22,8 +22,19 @@ signal.signal(signal.SIGALRM, handler)
 
 def detection_callback(msg):
     global detection_enabled
+    global pub
     detection_enabled = msg.data
     rospy.loginfo(f"Detection {'enabled' if detection_enabled else 'disabled'}")
+    image_path = "/tmp/person_snapshot.jpg"  # Shared snapshot file
+    if detection_enabled and os.path.exists(image_path):
+        mod_time = os.path.getmtime(image_path)
+        last_mod_time = None
+        if last_mod_time is None or mod_time != last_mod_time:
+            rospy.loginfo("🔍 New snapshot detected, analyzing...")
+            result = analyze_image(image_path)
+            pub.publish(result)
+            rospy.loginfo(f"📤 Gemini attributes: {result}")
+            last_mod_time = mod_time
 
 def control_callback(msg):
     global detection_enabled
@@ -59,10 +70,10 @@ def analyze_image(image_path):
         return f"Gemini error: {e}"
 
 def main():
-    rospy.init_node("gemini_description_node", anonymous=True)
-    pub = rospy.Publisher("/gemini_description", String, queue_size=10)
-    rospy.Subscriber("/enable_detection", Bool, detection_callback)
-    rospy.Subscriber("/gemini_control", String, control_callback)
+    # rospy.init_node("gemini_description_node", anonymous=True)
+    # pub = rospy.Publisher("/gemini_description", String, queue_size=10)
+    # rospy.Subscriber("/enable_detection", Bool, detection_callback)
+    # rospy.Subscriber("/gemini_control", String, control_callback)
 
     image_path = "/tmp/person_snapshot.jpg"  # Shared snapshot file
 
@@ -71,20 +82,25 @@ def main():
 
     last_mod_time = None
 
-    while not rospy.is_shutdown():
-        if detection_enabled and os.path.exists(image_path):
-            mod_time = os.path.getmtime(image_path)
-            if last_mod_time is None or mod_time != last_mod_time:
-                rospy.loginfo("🔍 New snapshot detected, analyzing...")
-                result = analyze_image(image_path)
-                pub.publish(result)
-                rospy.loginfo(f"📤 Gemini attributes: {result}")
-                last_mod_time = mod_time
-        rate.sleep()
+    # while not rospy.is_shutdown():
+    #     if detection_enabled and os.path.exists(image_path):
+    #         mod_time = os.path.getmtime(image_path)
+    #         if last_mod_time is None or mod_time != last_mod_time:
+    #             rospy.loginfo("🔍 New snapshot detected, analyzing...")
+    #             result = analyze_image(image_path)
+    #             pub.publish(result)
+    #             rospy.loginfo(f"📤 Gemini attributes: {result}")
+    #             last_mod_time = mod_time
+    #     rate.sleep()
 
 if __name__ == "__main__":
     try:
+        rospy.init_node("gemini_description_node", anonymous=True)
+        pub = rospy.Publisher("/gemini_description", String, queue_size=10)
+        rospy.Subscriber("/enable_detection", Bool, detection_callback)
+        rospy.Subscriber("/gemini_control", String, control_callback)
         main()
+
         rospy.spin()
     except rospy.ROSInterruptException:
         pass

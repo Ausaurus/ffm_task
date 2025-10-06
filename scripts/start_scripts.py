@@ -194,32 +194,6 @@ class start_scripts:
                 while not self.centered:
                     self.rate.sleep()
 
-            elif self.skip == 3:
-                rospy.loginfo("waiting for person to be centered")
-                while not self.centered:
-                    self.rate.sleep()
-
-                rospy.loginfo("skip current customer")
-                self.centered = False
-                self.spin_pub.publish("continue")
-                rospy.loginfo("waiting for person to be centered")
-                while not self.centered:
-                    self.rate.sleep()
-
-                rospy.loginfo("skip current customer")
-                self.centered = False
-                self.spin_pub.publish("continue")
-                rospy.loginfo("waiting for person to be centered")
-                while not self.centered:
-                    self.rate.sleep()
-
-                rospy.loginfo("skip current customer")
-                self.centered = False
-                self.spin_pub.publish("continue")
-                rospy.loginfo("waiting for person to be centered")
-                while not self.centered:
-                    self.rate.sleep()
-
             else:
                 rospy.loginfo("waiting for person to be ceneterd")
                 while not self.centered:

@@ -17,7 +17,7 @@ class WaypointExecutor:
         rospy.loginfo("Connected to move_base action server")
         self.current_goal = None
         self.retry_count = 0
-        self.max_retries = 2  # Maximum retry attempts
+        self.max_retries = 3  # Maximum retry attempts
 
     def send_waypoint(self, waypoint):
         goal = MoveBaseGoal()

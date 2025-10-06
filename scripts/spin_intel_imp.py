@@ -15,14 +15,14 @@ class YoloSpinRealSense:
         self.model_path    = rospy.get_param("~model", "yolo12n.pt")
         self.min_conf      = rospy.get_param("~min_conf", 0.60)
         self.cmd_vel_topic = rospy.get_param("~cmd_vel_topic", "/resume_cmd")
-        self.scan_speed    = rospy.get_param("~scan_speed", 0.6)
-        self.align_kp      = rospy.get_param("~align_kp", 1.0)
-        self.align_w_max   = rospy.get_param("~align_w_max", 0.8)
-        self.deadband_deg  = rospy.get_param("~deadband_deg", 3.0)
+        self.scan_speed    = rospy.get_param("~scan_speed", 0.65)
+        self.align_kp      = rospy.get_param("~align_kp", 5.0)
+        self.align_w_max   = rospy.get_param("~align_w_max", 0.3)
+        self.deadband_deg  = rospy.get_param("~deadband_deg", 2.60)
         self.stable_frames = rospy.get_param("~stable_frames", 4)
         self.imgsz        = rospy.get_param("~imgsz", 640)
         self.show_viz      = rospy.get_param("~show_viz", True)
-        self.max_distance  = rospy.get_param("~max_distance", 1.7)  # meters
+        self.max_distance  = rospy.get_param("~max_distance", 2.5)  # meters
         self.max_distance = min(max(self.max_distance, 0.1), 10.0)  # Clamp to valid range
 
         if not os.environ.get("DISPLAY"):
@@ -239,8 +239,8 @@ class YoloSpinRealSense:
 
                 self.last_bbox = box_best
                 x1, y1, x2, y2 = box_best
-                if self.in_continue and (self.prev_x1 is not None) and (x2 >= int(self.prev_x1)):
-                    self.mask_min_x = int(x2) + 10
+                if self.in_continue and (self.prev_x1 is not None) and (x2 >= (int(self.prev_x1) - 20)):
+                    self.mask_min_x = int(x2) + 20
 
                 w = clamp(-self.align_kp * yaw_best, -self.align_w_max, self.align_w_max)
                 self._send_w(w)

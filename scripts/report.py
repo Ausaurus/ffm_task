@@ -17,10 +17,18 @@ class ReporterNode:
         self.reported_pub = rospy.Publisher('/rep_done', Bool, queue_size=10)
 
         # Subscribers
+        rospy.Subscriber('/audio_output_finished', Bool,self.audio_finish_call)
         rospy.Subscriber('/report', Bool, self.reach_callback)
 
         # Keep track of used characteristic types
         self.used_types = set()
+
+        self.finish_play = False
+        self.wait = True
+
+    def audio_finish_call(self,msg):
+        if msg.data == True:
+            self.reported_pub.publish(Bool(data=True))
 
     def reach_callback(self, msg):
         if msg.data:
@@ -44,7 +52,7 @@ class ReporterNode:
             rospy.logwarn("No person data available")
             return
 
-        # ✅ Get the last inserted person if dictionary
+        # Get the last inserted person if dictionary
         if isinstance(data, dict):
             latest_person_key = list(data.keys())[-1]
         elif isinstance(data, list) and data:
@@ -57,36 +65,27 @@ class ReporterNode:
 
         latest_person = data[latest_person_key]
         rospy.loginfo(f"Processing latest person: {latest_person_key}")
-        chosen_chars = self.choose_characteristics(latest_person)
+        chosen_chars,loc = self.choose_characteristics(latest_person)
 
         if chosen_chars:
             # Include person's name first
             name_text = f"Name: {latest_person_key}"
             char_text = ', '.join([f"{t}: {v}" for t, v in chosen_chars])
-            full_text = f"{name_text}, {char_text}"
+            full_text = f"{name_text},{loc} {char_text}"
 
             self.tts_pub.publish(String(data=full_text))
             rospy.loginfo(f"TTS: {full_text}")
 
-            # Estimate speaking time (roughly 150 wpm → 2.5 words/sec)
-            words = len(full_text.split())
-            duration = words / 2.5  # seconds
-
-            rospy.Timer(rospy.Duration(duration), self.publish_reported, oneshot=True)
         else:
             rospy.logwarn("No characteristics could be selected")
-
-
-
-    def publish_reported(self, event):
-        self.reported_pub.publish(Bool(data=True))
-        rospy.loginfo("Reported published after TTS finished.")
 
     def choose_characteristics(self, person_data):
         chosen = []
         possible_sources = ['Matching_characteristics', 'Gemini_characteristics', 'Camera_characteristics']
         comparison_result = person_data.get('Comparison_result', {})
-
+        status = person_data.get('Gemini_location', {})
+        location = f"sit near the table"
+        print(f"Location: {location}")
         for source in possible_sources:
             characteristics = comparison_result.get(source, {})
             rospy.loginfo(f"Processing source: {source}, characteristics: {characteristics}")
@@ -104,12 +103,9 @@ class ReporterNode:
                     self.used_types.add(char_type)
                     if len(chosen) == 2:
                         print(f"Chosen characteristics: {chosen}")
-                        return chosen
+                        return chosen, location
 
-        return chosen if chosen else None
-
-
-
+        return chosen, location if chosen else None
 
 if __name__ == '__main__':
     try:
